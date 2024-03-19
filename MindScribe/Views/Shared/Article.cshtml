@@ -1,0 +1,113 @@
+﻿@model MindScribe.ViewModels.ArticleViewModel;
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<User> SignInManager
+@inject UserManager<User> UserManager
+
+@{
+    ViewData["Title"] = "Article Page";
+    var userManager = ViewData["UserManager"] as UserManager<User>;
+}
+
+
+<div>
+    <div>
+        <h2>@Model.Title</h2>
+    </div>
+    <div class="mt-1">
+        <p>@Model.Content_article</p>
+    </div>
+    <hr class="horizon-line">
+    <div class="mt-2 d-flex flex-wrap">
+        <p>Теги: </p>
+        @if (Model.Tags != null)
+        {
+            <ul class="list-unstyled list-group list-group-horizontal">
+                @foreach (var tag in @Model.Tags)
+                {
+                    <li class="ms-2">
+                        <div>
+                            <span class="badge bg-primary rounded-pill">@tag.NameTag</span>
+                       </div>
+                   </li>
+                }
+            </ul>
+        }
+    </div>
+    <div>
+        <p>Дата создания: @Model.Created_at</p>
+        <p>Дата обновления: @Model.Updated_at</p>
+        <p>Автор: @if (userManager != null) { @await Model.GetFullNameAuthor(userManager); }</p>
+    </div>
+    <hr class="horizon-line">
+    @if (User?.Identity?.IsAuthenticated == true && User?.IsInRole("Admin") == true)
+    {
+        <div>
+            <form asp-controller="Article" asp-action="DeleteArticle" method="post">
+                <input type="hidden" name="id" value="@ViewContext.RouteData.Values["id"]" />
+                <button type="submit" class="btn btn-sm btn-danger">
+                    Удалить
+                </button>
+            </form>
+        </div>
+    }
+    <div class="mt-2">
+        <label>Комментарии к статье: </label>
+        <div>
+            @if (User != null && SignInManager.IsSignedIn(User))
+            {
+                <partial name="Comment" model="Model.CommentView" />
+                <hr class="horizon-line">
+            }
+        </div>
+        <div class="mt-2">
+            @if (Model.Comments != null)
+            {
+                @foreach (var comment in Model.Comments)
+                {
+                    @if (comment != null && userManager != null)
+                    {
+                        <p class="p-0 mt-1 mb-0">@await comment.GetFullNameComment(userManager)</p>
+                    }
+                    @if (comment != null)
+                    {
+                        <p class="p-0 mt-1 mb-0">@comment.Content_comment</p>
+                    }
+                    @if (comment != null)
+                    {
+                        <p class="p-0 mt-1 mb-0">Дата создания: @comment.Created_at</p>
+                    }
+                    @if (User != null && User.Identity != null && User.Identity.IsAuthenticated &&
+                   (User.IsInRole("Admin") || User.IsInRole("Moderator") || (comment != null && comment.User_id == userManager?.GetUserId(User))))
+                    {
+                        <form method="post" action="/Article/{id}/DeleteComment">
+                            <input type="hidden" name="id" value="@ViewContext.RouteData.Values["id"]" />
+                            <input type="hidden" name="commentId" value="@comment.Id" />
+                            <input class="btn btn-danger mt-1" type="submit" value="Удалить"/>
+                        </form>
+
+                        <input class="btn btn-primary mt-1" type="button" onclick="toggleEditForm('@comment.Id')" value="Редактировать " />
+                        <div id="editForm-@comment.Id" style="display: none;">
+                            <form method="post" action="/Article/{id}/EditComment">
+                                <input type="hidden" name="id" value="@ViewContext.RouteData.Values["id"]" />
+                                <input type="hidden" name="commentId" value="@comment.Id" />
+                                <textarea class="mt-1" name="content">@comment.Content_comment</textarea>
+                                <input class="btn btn-success mt-1" type="submit" value="Сохранить" />
+                            </form>
+                        </div>
+                        <script>
+                            function toggleEditForm(commentId) {
+                            var editForm = document.getElementById('editForm-' + commentId);
+                            if (editForm.style.display === 'none') {
+                            editForm.style.display = 'block';
+                            } else {
+                            editForm.style.display = 'none';
+                            }
+                            }
+                        </script>
+                    }
+
+                }
+            }
+        </div>
+    </div>
+</div>
